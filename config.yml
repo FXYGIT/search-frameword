@@ -11,3 +11,7 @@ rate_limit:
 
 log:
   level: "INFO"
+
+proxy:
+  username: 18925155363
+  password: 4EGPkKtQ
