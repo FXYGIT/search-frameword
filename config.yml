@@ -1,0 +1,13 @@
+# config.yml
+
+app:
+  name: "WebSearchAPI"
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+
+rate_limit:
+  limit: "100/second"
+
+log:
+  level: "INFO"
