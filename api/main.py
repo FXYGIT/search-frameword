@@ -1,7 +1,6 @@
 # api/main.py
 from fastapi import FastAPI
 from api.routes import search
-from api.middleware import LoggingMiddleware
 from api.ratelimiter import limiter
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
@@ -20,4 +19,4 @@ async def ratelimit_handler(request, exc):
     )
 
 # 中间件
-app.add_middleware(LoggingMiddleware)
+# app.add_middleware(LoggingMiddleware)

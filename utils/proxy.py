@@ -11,12 +11,12 @@ async def get_proxy(return_type="str") -> str:
     你可以根据实际服务地址修改这里。
     """
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get("http://172.22.121.6:60007/proxy/get/")  # 示例接口
             resp.raise_for_status()
 
             proxy = resp.json()["proxy"]
-            proxy_str = "http://%(user)s:%(pwd)s@%(proxy)s/" % {"user": cfg["proxy"]["username"], "pwd": cfg["proxy"]["password"], "proxy": proxy}
+            proxy_str = "http://%(user)s:%(pwd)s@%(proxy)s/" % {"user": cfg._config["proxy"]["username"], "pwd": cfg._config["proxy"]["password"], "proxy": proxy}
 
             if return_type == "str":
                 return proxy_str

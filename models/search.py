@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class SearchRequest(BaseModel):
@@ -19,9 +19,19 @@ class SearchSougouWeixinResult(BaseModel):
     publish_time: str
     location: str
     content: str
+    md5: str
 
 
-class SearchResponse(BaseModel):
+class SearchResponseBaidu(BaseModel):
     success: bool
-    data: Optional[List[SearchBaiduResult|SearchSougouWeixinResult]] = None
-    error: Optional[str] = None 
+    data: Optional[List[SearchBaiduResult]] = None
+    error: Optional[str] = None
+
+
+class SearchResponseWeixin(BaseModel):
+    success: bool
+    data: Optional[List[SearchSougouWeixinResult]] = None
+    error: Optional[str] = None
+
+
+SearchResponse = Union[SearchResponseBaidu, SearchResponseWeixin]
