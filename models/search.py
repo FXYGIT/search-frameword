@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class SearchRequest(BaseModel):
@@ -7,13 +7,31 @@ class SearchRequest(BaseModel):
     engine: str  # 比如 "baidu", "google"
 
 
-class SearchResult(BaseModel):
+class SearchBaiduResult(BaseModel):
     title: str
     link: str
-    detail_content: str
+    content: str
 
 
-class SearchResponse(BaseModel):
+class SearchSougouWeixinResult(BaseModel):
+    title: str
+    organization: str
+    publish_time: str
+    location: str
+    content: str
+    md5: str
+
+
+class SearchResponseBaidu(BaseModel):
     success: bool
-    data: Optional[List[SearchResult]] = None
+    data: Optional[List[SearchBaiduResult]] = None
     error: Optional[str] = None
+
+
+class SearchResponseWeixin(BaseModel):
+    success: bool
+    data: Optional[List[SearchSougouWeixinResult]] = None
+    error: Optional[str] = None
+
+
+SearchResponse = Union[SearchResponseBaidu, SearchResponseWeixin]

@@ -2,7 +2,7 @@
 
 from typing import List
 from service.websearch.base import BaseSearchEngine
-from models.search import SearchResult
+from models.search import SearchBaiduResult
 from service.websearch.registry import register_engine
 
 
@@ -12,7 +12,7 @@ class BaiduSearchEngine(BaseSearchEngine):
     百度搜索引擎实现类。
     """
 
-    async def search(self, query: str) -> List[SearchResult]:
+    async def search(self, query: str) -> List[SearchBaiduResult]:
         """
         实现百度搜索的核心逻辑。
         这里只是示例结构，暂不执行实际请求。
