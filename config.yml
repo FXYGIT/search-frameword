@@ -15,3 +15,9 @@ log:
 proxy:
   username: 18925155363
   password: 4EGPkKtQ
+
+tianyan:
+  base_url: "https://www.tianyancha.com/nsearch"
+  use_proxy: true
+  retry_times: 3
+  delay: 2  # 请求间隔时间(秒)
