@@ -4,7 +4,10 @@ from utils.loader import get_config
 
 cfg = get_config()
 
+
+
 if __name__ == "__main__":
+
     uvicorn.run(
         "api.main:app",
         host=cfg.get("app.host", "0.0.0.0"),

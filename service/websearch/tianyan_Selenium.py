@@ -278,14 +278,20 @@ class TianyanChaSpider:
                     
             finally:
                 # 归还driver到池中
-                await manager.release_driver(driver)
+                self.logger.debug("开始后台释放 driver")
+                asyncio.create_task(self._safe_release(driver, manager))
                 
         except Exception as e:
             self.logger.error(f"异步搜索过程中出错: {str(e)}")
             import traceback
             self.logger.error(traceback.format_exc())
             return []
-    
+
+    async def _safe_release(self, driver, manager):
+        try:
+            await manager.release_driver(driver)
+        except Exception as e:
+            self.logger.warning(f"释放 driver 时出错: {e}")
     def _sync_search_with_driver(self, driver, query):
         """
         使用给定的driver执行同步搜索

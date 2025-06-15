@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-from service.websearch.selenium_manager import SeleniumManager
+from service.websearch.driver_manager import SeleniumManager
 class AsynTianyanChaSpider:
     def __init__(self, selenium_manager: SeleniumManager):
         """

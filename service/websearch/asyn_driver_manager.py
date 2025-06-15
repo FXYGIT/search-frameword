@@ -15,7 +15,7 @@ class AsyncSeleniumManager:
     """
     
     def __init__(self, 
-                 max_drivers: int = 3, 
+                 max_drivers: int = 2,
                  implicit_wait: int = 10,
                  page_load_timeout: int = 30,
                  headless: bool = False,
@@ -137,7 +137,11 @@ class AsyncSeleniumManager:
             try:
                 # 在线程池中执行WebDriver操作
                 loop = asyncio.get_event_loop()
-                
+
+                # 确保切回第一个标签页
+                await loop.run_in_executor(None, lambda: driver.switch_to.window(driver.window_handles[0]))
+                # 清除标签页只剩一页
+                await loop.run_in_executor(None, lambda: self._close_extra_tabs(driver))
                 # 清除cookies并返回到空白页
                 await loop.run_in_executor(None, lambda: driver.delete_all_cookies())
                 await loop.run_in_executor(None, lambda: driver.get("about:blank"))
@@ -150,7 +154,15 @@ class AsyncSeleniumManager:
                 await self._replace_driver(driver)
         else:
             self.logger.warning("尝试归还未知的WebDriver实例")
-    
+
+    @staticmethod
+    def _close_extra_tabs(driver: webdriver.Chrome):
+        handles = driver.window_handles
+        main_handle = handles[0]
+        for handle in handles[1:]:
+            driver.switch_to.window(handle)
+            driver.close()
+        driver.switch_to.window(main_handle)
     async def _replace_driver(self, old_driver: webdriver.Chrome) -> None:
         """异步替换损坏的WebDriver实例"""
         async with self._lock:
@@ -214,4 +226,10 @@ class AsyncSeleniumManager:
             self.all_drivers.clear()
             self.logger.info("所有WebDriver实例已关闭")
 
+manager = AsyncSeleniumManager(max_drivers=2)
 
+async def init_driver_pool():
+    await manager.initialize()
+
+async def shutdown_driver_pool():
+    await manager.close_all()
