@@ -4,8 +4,19 @@ from api.routes import search
 from api.ratelimiter import limiter
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
+from service.proxypool import ProxyPool
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    pool = ProxyPool()
+    await pool.start()
+    app.state.proxy_pool = pool
+    yield
+    await pool.stop()
+
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(search.router)
 
 # 限速处理

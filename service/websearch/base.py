@@ -11,7 +11,8 @@ retry_logger = logging.getLogger("tenacity")
 # from models.search import SearchResult
 from utils.logger import get_logger
 from utils.http_client import get_http_client
-from utils.proxy import get_proxy
+# from utils.proxy import get_proxy
+from service.proxypool import get_proxy
 
 
 class BaseSearchEngine(ABC):
