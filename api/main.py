@@ -1,4 +1,6 @@
 # api/main.py
+from contextlib import asynccontextmanager
+from service.websearch.asyn_driver_manager import init_driver_pool, shutdown_driver_pool
 from fastapi import FastAPI
 from api.routes import search
 from api.ratelimiter import limiter
@@ -22,6 +24,7 @@ app.include_router(search.router)
 
 # 限速处理
 app.state.limiter = limiter
+
 
 @app.exception_handler(RateLimitExceeded)
 async def ratelimit_handler(request, exc):

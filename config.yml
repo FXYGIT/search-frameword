@@ -18,3 +18,8 @@ proxy:
   proxyAddr: tun-lreqvr.qg.net:19104
   username : 15971019490
 
+tianyan:
+  base_url: "https://www.tianyancha.com/nsearch"
+  use_proxy: true
+  retry_times: 3
+  delay: 2  # 请求间隔时间(秒)
