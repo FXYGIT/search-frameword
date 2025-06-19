@@ -9,15 +9,16 @@ class SearchRequest(BaseModel):
 
 class SearchBaiduResult(BaseModel):
     title: str
-    link: str
+    # 将这些字段标记为可选，允许为空
+    # organization: Optional[str] = None
+    # publish_time: Optional[str] = None
+    # location: Optional[str] = None
     content: str
+    md5: str
 
 
 class SearchSougouWeixinResult(BaseModel):
     title: str
-    organization: str
-    publish_time: str
-    location: str
     content: str
     md5: str
 

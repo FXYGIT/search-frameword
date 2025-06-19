@@ -13,5 +13,8 @@ log:
   level: "INFO"
 
 proxy:
-  username: 18925155363
-  password: 4EGPkKtQ
+  authKey: F6F7FD85
+  password: 5086B9755012
+  proxyAddr: tun-lreqvr.qg.net:19104
+  username : 15971019490
+
