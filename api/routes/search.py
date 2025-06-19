@@ -1,6 +1,7 @@
 # api/routes/search.py
 from fastapi import APIRouter, HTTPException, Request, Depends
 from models.search import SearchRequest, SearchResponse, SearchResponseBaidu, SearchResponseWeixin
+from service.websearch.baidu import BaiduSearchEngine
 from service.websearch.sougou_weixin import SougouWeixinSearchEngine
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -17,6 +18,9 @@ async def search(
     if body.engine == "sougou_weixin":
         engine = SougouWeixinSearchEngine()
         model_cls = SearchResponseWeixin
+    if body.engine == "baidu":
+        engine = BaiduSearchEngine()
+        model_cls = SearchResponseBaidu
 
     try:
         results = await engine.asearch(body.query)

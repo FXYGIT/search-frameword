@@ -5,13 +5,18 @@ from typing import List, Optional
 import httpx
 import logging
 
+from httpx import HTTPStatusError
+
 from tenacity import retry, stop_after_attempt, wait_fixed, RetryError, before_sleep_log
+
+
+
 retry_logger = logging.getLogger("tenacity")
 
-# from models.search import SearchResult
 from utils.logger import get_logger
 from utils.http_client import get_http_client
 from utils.proxy import get_proxy
+
 
 
 class BaseSearchEngine(ABC):
@@ -36,6 +41,7 @@ class BaseSearchEngine(ABC):
         # retry_error_callback=lambda retry_state: None,
         before_sleep=before_sleep_log(retry_logger, logging.WARNING),
     )
+
     async def fetch(self, url: str, headers: Optional[dict] = None, params: Optional[dict] = None, cookies: Optional[dict] = None) -> Optional[str]:
         try:
             proxy = await get_proxy()
@@ -53,3 +59,9 @@ class BaseSearchEngine(ABC):
             raise e  # 告诉 tenacity 触发重试
         finally:
             await client.aclose()
+
+
+
+
+
+
