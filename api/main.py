@@ -16,7 +16,8 @@ async def lifespan(app: FastAPI):
     await pool.stop()
 
 
-app = FastAPI(lifespan=lifespan)
+# app = FastAPI(lifespan=lifespan) # 暂时不考虑试用代理池 隧道代理
+app = FastAPI()
 app.include_router(search.router)
 
 # 限速处理
