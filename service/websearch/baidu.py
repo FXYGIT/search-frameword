@@ -1,15 +1,17 @@
 import hashlib
 
 import asyncio
+import re
 from typing import List, Dict, Optional
 import httpx
 import requests
+from bs4 import BeautifulSoup, Tag
 
 from service.websearch.base import BaseSearchEngine
 from models.search import SearchBaiduResult  # 建议新建通用模型
 from lxml import html
 from utils.logger import get_logger
-
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = get_logger(__name__)
 
@@ -44,20 +46,20 @@ class BaiduSearchEngine(BaseSearchEngine):
     async def asearch(self, query: str, page: int = 1, hashing_set: set[str] = set()) -> List[SearchBaiduResult]:
         logger.info(f"Performing Baidu search for query: {query}")
         try:
-            links = await self._search(query, page, hashing_set)
+            results = await self._search(query, page, hashing_set)
         except Exception as e:
             logger.error(f"Baidu search failed: {e}")
             return []
 
-        tasks = [self.get_detail(link) for link in links]
-        raw_results = await asyncio.gather(*tasks)
-        #  过滤空 title或者 content
-        results =[ result for result in raw_results  if  result is not None and result.get("title", "").strip() and result.get("content", "").strip() ]
-        logger.info(f"Baidu search finished, got {len(results)} new articles")
+        # tasks = [self.get_detail(link) for link in links]
+        # raw_results = await asyncio.gather(*tasks)
+        # #  过滤空 title或者 content
+        # results =[ result for result in raw_results  if  result is not None and result.get("title", "").strip() and result.get("content", "").strip() ]
+        # logger.info(f"Baidu search finished, got {len(results)} new articles")
         return results
 
 
-    async def _search(self, query: str, page: int, hashing_set: set[str]) -> List[str]:
+    async def _search(self, query: str, page: int, hashing_set: set[str]) -> List[SearchBaiduResult]:
         # params = {
         #     "wd": query,
         #     "pn": (page - 1) * self.results_per_page,
@@ -97,54 +99,144 @@ class BaiduSearchEngine(BaseSearchEngine):
                     response = await self.fetch(redirect_url, headers=self.headers_search)
 
         # cookies = dict(response.cookies)
-        tree = html.fromstring(response.text)
-        filter_num = 0
-        baidu_links = []
 
-        elements = tree.xpath("//div[@class='result c-container xpath-log new-pmd']")
-        for element in elements:
-            hrefs = element.xpath(".//h3/a/@href")[0]
-            if not hrefs:
-                continue
+        results = self._parse_response(response.text)
+        return results
 
-            title = "".join(
-                [text.replace("\n", "").strip() for text in element.xpath(".//span[@class='tts-b-hl']//text()")])
-            md5 = self.compute_md5(query, title)
-
-            if md5 in hashing_set:
-                filter_num += 1
-                continue
-
-            baidu_links.append(hrefs)
-
-        # 单独处理百度百科
-        # element_baike = tree.xpath("//div[@class='result-op c-container xpath-log new-pmd']")
-        # if element_baike:
-        #     hrefs = element_baike.xpath(".//h3/a/@href")[0]
+        # tree = html.fromstring(response.text)
+        # filter_num = 0
+        # baidu_links = []
+        #
+        # results = []
+        # elements = tree.xpath("//div[@class='result c-container xpath-log new-pmd']")
+        #
+        # for element in elements:
+        #     print(type(element))
+        #     hrefs = element.xpath(".//h3/a/@href")[0]
+        #     if not hrefs:
+        #         continue
+        #
         #     title = "".join(
-        #         [text.replace("\n", "").strip() for text in element_baike.xpath(".//span[@class='tts-b-hl']//text()")])
-        #     md5 = self.compute_md5(query, title)
+        #         [text.replace("\n", "").strip() for text in element.xpath(".//span[@class='tts-b-hl']//text()")])
+        #
+        #     abstract = "".join(
+        #         [text.replace("\n", "").strip() for text in element.xpath(".//div[@data-module='abstract']//text()")])
+        #
+        #     publish_time = "".join(
+        #         [text.replace("\n", "").strip() for text in element.xpath(".//div[@data-module='abstract']//span[@class='cos-space-mr-3xs cos-color-text-minor']")])
+        #
+        #     pattern = r'feedback.?[^}]*?"url"\s*:\s*"(.*?)","urlSign"'
+        #     url_match = re.search(pattern, str(element))
+        #     real_url = url_match.group(1) if url_match else ""
+        #
+        #     md5 = self.compute_md5(query,title,publish_time,abstract,real_url)
+        #
         #     if md5 in hashing_set:
         #         filter_num += 1
-        #     baidu_links.append(hrefs)
+        #         continue
+        #
+        #     results.append(SearchBaiduResult(
+        #         title=title,
+        #         abstract=abstract,
+        #         publish_time=publish_time,
+        #         real_url=real_url,
+        #         md5=md5,
+        #     ))
 
-        logger.info(f"关键词 '{query}'，过滤 {filter_num} 条重复，待解析 {len(baidu_links)} 条链接")
-        baidu_transfer_tasks = [self.resolve_real_url(url) for url in baidu_links]
-        baidu_links_raw = await asyncio.gather(*baidu_transfer_tasks)
-        baidu_links = [link for link in baidu_links_raw if link is not None]
-        return baidu_links
+            # baidu_links.append(hrefs)
 
 
+        # logger.info(f"关键词 '{query}'，过滤 {filter_num} 条重复，待解析 {len(baidu_links)} 条链接")
+        # baidu_transfer_tasks = [self.resolve_real_url(url) for url in baidu_links]
+        # baidu_links_raw = await asyncio.gather(*baidu_transfer_tasks)
+        # baidu_links = [link for link in baidu_links_raw if link is not None]
+        return results
+
+    def _parse_response(self, text: str) -> list[SearchBaiduResult]:
+        """Parse the response from the Baidu search engine."""
+        results = []
+        soup = BeautifulSoup(text, "html.parser")
+
+        # 查找所有搜索结果容器
+        result_divs = soup.find_all("div", class_=re.compile(r"(result|result-op) c-container"))
+
+        for div in result_divs:
+            try:
+                # 提取标题
+                title = ""
+                title_elem = div.find("h3", class_=re.compile(r".*title.*"))
+                if title_elem and isinstance(title_elem, Tag):
+                    # 移除HTML标签，只保留文本
+                    title_text = title_elem.get_text(strip=True)
+                    # 移除高亮标签等
+                    title = re.sub(r"<!--.*?-->", "", title_text)
+
+                # 提取发表日期
+                publish_time_elem = div.find("span", class_=re.compile(r"cos-space-mr-3xs cos-color-text-minor"))
+                publish_time = publish_time_elem.get_text(strip=True) if publish_time_elem else "暂未显示发布时间"
+
+                # 提取摘要
+                abstract = ""
+                # 查找包含摘要的元素
+                abstract_elem = div.find("span", class_=re.compile(r".*summary-text.*"))
+                if abstract_elem and isinstance(abstract_elem, Tag):
+                    abstract = abstract_elem.get_text(strip=True)
+                else:
+                    # 备选方案：查找包含摘要的其他元素
+                    abstract_elem = div.find("div", {"data-module": "abstract"})
+                    if abstract_elem and isinstance(abstract_elem, Tag):
+                        abstract = abstract_elem.get_text(strip=True)
+
+                # 清理摘要文本，移除HTML标签
+                if abstract:
+                    abstract = re.sub(r"<[^>]+>", "", abstract)
+                    abstract = re.sub(r"\s+", " ", abstract).strip()
+
+                # 提取真实URL
+                # 方法1: 尝试从脚本标签中提取JSON数据
+                # 提取URL 使用正则表达式:
+                pattern = r'feedback.?[^}]*?"url"\s*:\s*"(.*?)","urlSign"'
+                url_match = re.search(pattern, str(div))
+                real_url = url_match.group(1) if url_match else ""
+
+                # 方法2: 如果方法1失败，尝试从a标签中提取并解析百度跳转URL
+                if not real_url:
+                    a_tag = div.find("h3").find("a")
+                    url = a_tag.get("href") if a_tag else ""
+                    real_url = self.resolve_real_url(url)
+
+                md5 = self.compute_md5(title, publish_time, abstract, real_url)
+
+
+                results.append(SearchBaiduResult(
+                    title=title,
+                    publish_time=publish_time,
+                    abstract=abstract,
+                    real_url=real_url,
+                    md5=md5,
+                ))
+
+            except Exception as e:
+                # 记录错误但不影响其他结果的解析
+                logger.error(f"解析百度搜索结果时出错: {e}")
+
+        return results
+
+    @retry(
+        stop=stop_after_attempt(3),  # 最多重试3次
+        wait=wait_exponential(multiplier=1, min=4, max=10),  # 指数退避策略
+        retry=retry_if_exception_type(Exception),  # 只对特定异常类型重试
+        reraise=True  # 最后一次重试失败后重新抛出异常
+    )
     async def resolve_real_url(self, url) -> str:
-        try:
-            res = requests.get(url, allow_redirects=False)
-            if res.status_code in [301, 302]:
-                redirect_url = res.headers.get('Location')
-                print(redirect_url)
-                return redirect_url
-        except Exception as e:
-            logger.warning(f"重定向失败 {url}")
-            return url
+        res = requests.get(url, allow_redirects=False)
+        if res.status_code in [301, 302]:
+            redirect_url = res.headers.get('Location')
+            if not redirect_url:
+                raise ValueError(f"未获取到重定向 URL，状态码: {res.status_code}")
+            return redirect_url
+        else:
+            raise ValueError(f"非预期状态码: {res.status_code}")
 
 
     async def get_detail(self, url):
